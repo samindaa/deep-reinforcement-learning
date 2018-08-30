@@ -251,6 +251,7 @@ def dqn():
     scores = []  # list containing scores from each episode
     scores_window = deque(maxlen=100)  # last 100 scores
     eps = epsilon_start  # initialize epsilon
+    scores_window_mean = []
     for i_episode in range(1, num_episodes + 1):
         env_info = env.reset(train_mode=False)[brain_name]  # reset the environment
         state = env_info.vector_observations[0]  # get the current state
@@ -280,20 +281,24 @@ def dqn():
         print('\rEpisode {}\tAverage Score: {:.2f}\tEps: {:.3f}'.format(i_episode, np.mean(scores_window), eps), end="")
         if i_episode % 100 == 0:
             print('\rEpisode {}\tAverage Score: {:.2f}'.format(i_episode, np.mean(scores_window)))
-        if np.mean(scores_window) >= 15.0:
+            scores_window_mean.append(np.mean(scores_window))
+            torch.save(agent.qnetwork_local.state_dict(), 'checkpoint.pth')
+        if np.mean(scores_window) >= 13.0:
             print('\nEnvironment solved in {:d} episodes!\tAverage Score: {:.2f}'.format(i_episode - 100,
                                                                                          np.mean(scores_window)))
             torch.save(agent.qnetwork_local.state_dict(), 'checkpoint.pth')
-            break
-    return scores
+    return scores, scores_window_mean
 
 
 #model = DQN()
 #summary(model, input_size=(num_history, input_width))
 #exit(0)
-scores = dqn()
+scores, scores_window_mean = dqn()
+output_dict = {'scores': scores, 'scores_window_mean': scores_window_mean}
 with open('/Users/saminda/Udacity/DRLND/deep-reinforcement-learning/p1_navigation/scores.pkl', 'wb') as f:
-    pickle.dump(scores, f)
+    pickle.dump(output_dict, f)
+
+env.close()
 
 # plot the scores
 fig = plt.figure()
@@ -303,4 +308,3 @@ plt.ylabel('Score')
 plt.xlabel('Episode #')
 plt.show()
 
-env.close()
