@@ -253,7 +253,7 @@ def dqn():
     eps = epsilon_start  # initialize epsilon
     scores_window_mean = []
     for i_episode in range(1, num_episodes + 1):
-        env_info = env.reset(train_mode=False)[brain_name]  # reset the environment
+        env_info = env.reset(train_mode=True)[brain_name]  # reset the environment
         state = env_info.vector_observations[0]  # get the current state
         history = HistoryBuffer()
         history.reset(state)
