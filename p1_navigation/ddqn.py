@@ -15,9 +15,8 @@ import numpy as np
 import logging
 import pickle
 from collections import namedtuple, deque
-import matplotlib.pyplot as plt
 from unityagents import UnityEnvironment
-from p1_navigation.torchsummary import summary
+# from p1_navigation.torchsummary import summary
 
 import torch
 import torch.nn as nn
@@ -31,15 +30,16 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # parse command line
 parser = argparse.ArgumentParser(description='DDQN')
-parser.add_argument('--optimizer', default='RMSprop', help='Optimizer of choice')
-parser.add_argument('--file_name', default='/Users/saminda/Udacity/DRLND/Sim/Banana.app', help='Unity environment')
+parser.add_argument('--unity_file_name', default='/Users/saminda/Udacity/DRLND/Sim/Banana.app',
+                    help='Unity environment')
+parser.add_argument('--pkl_file_name', default='scores.pkl', help='Stats output file path')
 parser.add_argument('--learning_rate', type=float, default=0.001, metavar='N', help='optimizer learning rate')
 parser.add_argument('--replay_mem', type=int, default=10000, metavar='N', help='replay memory')
 parser.add_argument('--num_history', type=int, default=4, metavar='N', help='num history')
-parser.add_argument('--num_episodes', type=int, default=2000, metavar='N', help='num episodes')
+parser.add_argument('--num_episodes', type=int, default=1200, metavar='N', help='num episodes')
 parser.add_argument('--batch_size', type=int, default=64, metavar='N', help='batch size')
 parser.add_argument('--update_every', type=int, default=4, metavar='N', help='update every')
-parser.add_argument('--gamma', type=float, default=0.9, metavar='N',
+parser.add_argument('--gamma', type=float, default=0.99, metavar='N',
                     help='discount factor for present rewards vs. future rewards')
 parser.add_argument('--tau', type=float, default=1e-3, metavar='N', help='for soft update of target parameters')
 parser.add_argument('--epsilon_start', type=float, default=1.0, metavar='N', help='epsilon_start of random actions')
@@ -48,6 +48,7 @@ parser.add_argument('--epsilon_decay', type=float, default=0.995, metavar='N',
                     help='exponential decay of random actions')
 parser.add_argument('--allow_random', type=int, default=1, metavar='N', help='Allow DQN to select random actions')
 parser.add_argument('--debug_mode', type=int, default=0, metavar='N', help='debug mode')
+parser.add_argument('--training_mode', type=int, default=1, metavar='N', help='training mode')
 
 args = parser.parse_args()
 
@@ -55,8 +56,8 @@ args = parser.parse_args()
 input_width = 37
 num_actions = 4
 
-optimizer = args.optimizer
-file_name = args.file_name
+unity_file_name = args.unity_file_name
+pkl_file_name = args.pkl_file_name
 learning_rate = args.learning_rate
 replay_mem = args.replay_mem
 num_history = args.num_history
@@ -70,12 +71,13 @@ epsilon_end = args.epsilon_end
 epsilon_decay = args.epsilon_decay
 allow_random = args.allow_random
 debug_mode = args.debug_mode
+training_mode = args.training_mode
 
 logger.info('use_cuda:       ' + str(device))
 logger.info('input_width:    ' + str(input_width))
 logger.info('num_actions:    ' + str(num_actions))
-logger.info('optimizer:      ' + str(optimizer))
-logger.info('file_name:      ' + str(file_name))
+logger.info('unity_file_name:' + str(unity_file_name))
+logger.info('pkl_file_name:  ' + str(pkl_file_name))
 logger.info('learning rate:  ' + str(learning_rate))
 logger.info('replay_memory:  ' + str(replay_mem))
 logger.info('num_history:    ' + str(num_history))
@@ -89,6 +91,7 @@ logger.info('epsilon_end:    ' + str(epsilon_end))
 logger.info('epsilon_decay:  ' + str(epsilon_decay))
 logger.info('allow_random:   ' + str(allow_random))
 logger.info('debug_mode:     ' + str(debug_mode))
+logger.info('training_mode:  ' + str(training_mode))
 
 
 class ReplayBuffer:
@@ -196,6 +199,13 @@ class Agent(object):
         else:
             return random.choice(np.arange(num_actions))
 
+    def best_action(self, state):
+        state = torch.from_numpy(state).float().unsqueeze(0).to(device)
+        self.qnetwork_local.eval()
+        with torch.no_grad():
+            action_values = self.qnetwork_local(state)
+        return np.argmax(action_values.cpu().data.numpy())
+
     def learn(self, experiences, gamma):
         states, actions, rewards, next_states, dones = experiences
 
@@ -222,7 +232,7 @@ class Agent(object):
             target_param.data.copy_(tau * local_param.data + (1.0 - tau) * target_param.data)
 
 
-env = UnityEnvironment(file_name=file_name)
+env = UnityEnvironment(file_name=unity_file_name)
 
 # get the default brain
 brain_name = env.brain_names[0]
@@ -290,21 +300,77 @@ def dqn():
     return scores, scores_window_mean
 
 
-#model = DQN()
-#summary(model, input_size=(num_history, input_width))
-#exit(0)
-scores, scores_window_mean = dqn()
-output_dict = {'scores': scores, 'scores_window_mean': scores_window_mean}
-with open('/Users/saminda/Udacity/DRLND/deep-reinforcement-learning/p1_navigation/scores.pkl', 'wb') as f:
-    pickle.dump(output_dict, f)
+# model = DQN()
+# summary(model, input_size=(num_history, input_width))
+# exit(0)
+
+def dqn_test():
+    agent = Agent()
+    agent.qnetwork_local.load_state_dict(torch.load('checkpoint_solved.pth', map_location='cpu'))
+
+    env_info = env.reset(train_mode=False)[brain_name]  # reset the environment
+    state = env_info.vector_observations[0]  # get the current state
+    history = HistoryBuffer()
+    history.reset(state)
+    history_state = history.get_state()
+    score = 0  # initialize the score
+    while True:
+        action = agent.best_action(history_state)  # select an action
+        env_info = env.step(action)[brain_name]  # send the action to the environment
+        next_state = env_info.vector_observations[0]  # get the next state
+
+        history.append(next_state)
+        history_state = history.get_state()  # roll over the state to next time step
+
+        reward = env_info.rewards[0]  # get the reward
+        done = env_info.local_done[0]  # see if episode has finished
+        score += reward  # update the score
+
+        if done:  # exit loop if episode finished
+            break
+
+    print("Score: {}".format(score))
+
+
+if not debug_mode:
+    if training_mode:
+        logging.info('Training')
+        scores, scores_window_mean = dqn()
+        output_dict = {'scores': scores, 'scores_window_mean': scores_window_mean}
+        with open(pkl_file_name, 'wb') as f:
+            pickle.dump(output_dict, f)
+    else:
+        # Testing mode
+        logging.info("Testing")
+        dqn_test()
+
+if debug_mode:
+    logging.info("Stats and figures")
+
+    with open(pkl_file_name, 'rb') as f:
+        input_dict = pickle.load(f)
+
+    scores = input_dict['scores']
+    scores_window_mean = input_dict['scores_window_mean']
+
+    import matplotlib.pyplot as plt
+
+    # plot the scores
+    fig = plt.figure()
+    ax1 = fig.add_subplot(121)
+    plt.plot(np.arange(len(scores)), scores)
+    ax1.set_ylabel('Score')
+    ax1.set_xlabel('Episode #')
+    ax1.grid()
+    ax2 = fig.add_subplot(122)
+    plt.plot(np.arange(len(scores_window_mean)), scores_window_mean)
+    ax2.set_ylabel('Average Score')
+    ax2.set_xlabel('Every 100th Episode')
+    ax2.axis('equal')
+    ax2.grid()
+
+    plt.subplots_adjust(left=0.2, wspace=0.5, top=0.8)
+
+    plt.savefig('scores.png')
 
 env.close()
-
-# plot the scores
-fig = plt.figure()
-ax = fig.add_subplot(111)
-plt.plot(np.arange(len(scores)), scores)
-plt.ylabel('Score')
-plt.xlabel('Episode #')
-plt.show()
-
