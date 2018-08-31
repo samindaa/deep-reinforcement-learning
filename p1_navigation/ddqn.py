@@ -36,7 +36,7 @@ parser.add_argument('--pkl_file_name', default='scores.pkl', help='Stats output 
 parser.add_argument('--learning_rate', type=float, default=0.001, metavar='N', help='optimizer learning rate')
 parser.add_argument('--replay_mem', type=int, default=10000, metavar='N', help='replay memory')
 parser.add_argument('--num_history', type=int, default=4, metavar='N', help='num history')
-parser.add_argument('--num_episodes', type=int, default=1200, metavar='N', help='num episodes')
+parser.add_argument('--num_episodes', type=int, default=600, metavar='N', help='num episodes')
 parser.add_argument('--batch_size', type=int, default=64, metavar='N', help='batch size')
 parser.add_argument('--update_every', type=int, default=4, metavar='N', help='update every')
 parser.add_argument('--gamma', type=float, default=0.99, metavar='N',
