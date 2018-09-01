@@ -1,13 +1,13 @@
 # Project: Navigation
 ## Saminda Abeyruwan
 
-In this project, we have trained an agent that successfully navigate a square environment and collect Banana shaped objects. When the agent collects and yellow object, it gets +1, and when it collects blue object, it gets -1, otherwise 0. Following image shows an instance of the environment.
+In this project, we have trained an agent that successfully navigates a square environment and collects _banana_ shaped objects. When the agent collects a yellow object, it gets +1, and when it collects a blue object, it gets -1, otherwise 0. Following image shows an instance of the environment.
 
 ![image1](./p1_navigation/image1.png)
 
-The learning agent is designed using the concepts of model-free reinforcement learning (RL). Therefore, at each decision point, based on the state of the environment, the agent takes an action that maximizes to the object of collecting more +1 objects. The agent has four actions - move forward, move backward, turn left, and turn right. The environment state is available as a 37 feature vector, which includes the velocity of the agent, distance to object so on. 
+The learning agent is designed using the concepts of model-free reinforcement learning (RL). Therefore, at each decision point, based on the state of the environment, the agent takes an action that maximizes to the objective of collecting more +1 objects (rewards). The agent has four actions - move forward, move backward, turn left, and turn right. The environment state is available as a 37 feature vector, which includes the velocity of the agent, distance to other object in the environment among others. 
 
-Our performance criteria of the project is that the agent select objects such that the agent must maintain a score of +13 over 100 consecutive episodes.
+The final performance criteria of the agent is to select objects such that the agent must maintain a score of +13 points over 100 consecutive episodes.
 
 ### Learning Algorithm
 
@@ -15,11 +15,13 @@ I have used [Deep Double Q-learning](https://arxiv.org/pdf/1509.06461.pdf) algor
 
 ### State Representation
 
-The agent receives a real feature vector contains 37 elements (size (37,). In order to capture temporal aspects, I have also included _num\_history_ of past features to create the input state representation of size _(num\_history, 37)_. I have used this design as we explore the architecture of the deep neural network (DNN), we can directly use nn.Conv1d, and nn.BatchNorm1d to develop DNN with better modeling power and capacity.
+The agent receives a real feature vector containing 37 elements (size is (37,)). In order to capture the temporal aspects, I have also included _num\_history_ of past features to create the input state representation of size _(num\_history, 37)_. I have used this design, as we explore the architecture of the deep neural network (DNN), we can directly use nn.Conv1d, and nn.BatchNorm1d to develop a DNN with better modeling power and capacity. 
 
-### Deep Neural Network
+The very first state is repeated _num\_history_ times to a Python deque. All the next states are appended to the deque and generated the state vector. The implementation is available [here](https://github.com/samindaa/deep-reinforcement-learning/blob/master/p1_navigation/ddqn.py#L124). 
 
-I have committed to the following DNN architecture (created with [pytorch-summary](https://github.com/sksq96/pytorch-summary)).
+### Deep Q-Network
+
+I have committed to the following DQN architecture (created with [pytorch-summary](https://github.com/sksq96/pytorch-summary)). The implementation is available [here](https://github.com/samindaa/deep-reinforcement-learning/blob/master/p1_navigation/ddqn.py#L142).
 
 	----------------------------------------------------------------
 	        Layer (type)               Output Shape         Param #
@@ -44,9 +46,9 @@ I have committed to the following DNN architecture (created with [pytorch-summar
 	Estimated Total Size (MB): 0.03
 	----------------------------------------------------------------
   
-### Learning Setup
+### Training Setup
 
-The training has been done on GCP. I have used some of the credit available to me from Computer Vision Nanodegree to setup a CUDA based GCP instance and trained the agent. The instance has been initiated with:
+The training has been done on the GCP. I have used some credits available for me from Computer Vision Nanodegree to setup a CUDA based GCP instance, and trained the agent. The instance has been initiated with:
 
 	gcloud compute instances create $INSTANCE_NAME \
 	        --zone=$ZONE \
@@ -58,7 +60,7 @@ The training has been done on GCP. I have used some of the credit available to m
 	        --metadata='install-nvidia-driver=True' \
 	        --machine-type=n1-standard-2
 
- I have copied the __/data/Banana\_Linux\_NoVis__ simulator from Udacity workspace to the above instance and used the __Banana.x86\_64__ binary location _UnityEnvironment_. It works!
+ I have copied the __/data/Banana\_Linux\_NoVis__ simulator from Udacity Workspace to the cloud instance, and used the __Banana.x86\_64__ binary in _UnityEnvironment_. It works!
  
 ### Learning
 
@@ -78,7 +80,7 @@ There are many knobs to tune in the algorithm. The parameters that worked best f
 | epsilon_end   |     0.01      |
 | epsilon_decay |   0.995       |
 
-The agent solved the problem within __600 episodes__, and the weights are saved in [checkpoint_solved.pth](https://github.com/samindaa/deep-reinforcement-learning/blob/master/p1_navigation/checkpoint_solved.pth). The following figure shows the performance during training.
+The agent solved the problem within __600 episodes__, and the weights are saved in [checkpoint_solved.pth](https://github.com/samindaa/deep-reinforcement-learning/blob/master/p1_navigation/checkpoint_solved.pth). The following figure shows the performance during learning.
 
 ![image2](./p1_navigation/scores.png)
 
@@ -88,7 +90,6 @@ Following is the learning trace.
 	INFO:ddqn:use_cuda:       cuda
 	INFO:ddqn:input_width:    37
 	INFO:ddqn:num_actions:    4
-	INFO:ddqn:optimizer:      RMSprop
 	INFO:ddqn:unity_file_name:/home/jupyter/Banana_Linux_NoVis/Banana.x86_64
 	INFO:ddqn:learning rate:  0.001
 	INFO:ddqn:replay_memory:  10000
@@ -263,9 +264,9 @@ Following is the learning trace.
 
 The trained agent achieves +15 on the test environment. To run on the test environment:
 
-	python ddqn.py --unity_file_name=path/to/Banana.app --training_mode=0
+	python3 ddqn.py --unity_file_name=path/to/Banana.app --training_mode=0
 	
-Following video shows that the learned agent navigates the environment and collects +15 points. That's pretty awesome and cool!
+The following video shows that the learned agent navigates the environment and collects +15 points. That is pretty awesome and cool!
 
 [![Alt text](https://img.youtube.com/vi/B7dAbOEP5Ps/0.jpg)](https://www.youtube.com/watch?v=B7dAbOEP5Ps)
 
